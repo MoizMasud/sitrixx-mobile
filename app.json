@@ -1,21 +1,30 @@
 {
   "expo": {
-    "name": "sitrixx-mobile",
-    "slug": "sitrixx-mobile",
+    "name": "Sitrixx",
+    "slug": "sitrixx",
+    "icon": "./assets/logo.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4A00FF"
+    },
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true
-    },
+
+
+     "ios": {
+    "bundleIdentifier": "com.sitrixx.reviews",
+    "supportsTablet": true
+  },
+
+  "extra": {
+    "backendUrl": "https://sitrixx-website-backend.vercel.app"
+  },
     "android": {
+      "package": "com.sitrixx.reviews",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

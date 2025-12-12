@@ -71,7 +71,6 @@ const ContactsScreen: React.FC = () => {
     return () => {
       cancelled = true;
     };
-    // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -139,9 +138,7 @@ const ContactsScreen: React.FC = () => {
         email: editEmail.trim() || undefined,
       });
 
-      setCustomers((prev) =>
-        prev.map((c) => (c.id === updated.id ? updated : c)),
-      );
+      setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
 
       cancelEdit();
       setSuccess('Contact updated');
@@ -158,11 +155,7 @@ const ContactsScreen: React.FC = () => {
       `Are you sure you want to delete ${c.name || 'this contact'}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => handleDelete(c),
-        },
+        { text: 'Delete', style: 'destructive', onPress: () => handleDelete(c) },
       ],
     );
   };
@@ -176,9 +169,8 @@ const ContactsScreen: React.FC = () => {
       await deleteCustomer({ id: c.id });
 
       setCustomers((prev) => prev.filter((x) => x.id !== c.id));
-      if (editingId === c.id) {
-        cancelEdit();
-      }
+      if (editingId === c.id) cancelEdit();
+
       setSuccess('Contact deleted');
     } catch (e: any) {
       setError(e?.message || 'Failed to delete contact');
@@ -213,14 +205,11 @@ const ContactsScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Contacts</Text>
       <Text style={styles.subtitle}>
-        These are the customers saved for this business. Add, edit or remove
-        contacts and send review requests manually.
+        These are the customers saved for this business. Add, edit or remove contacts and send
+        review requests manually.
       </Text>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -237,8 +226,8 @@ const ContactsScreen: React.FC = () => {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Add customer</Text>
         <Text style={styles.cardDescription}>
-          After you finish a job or call, add the customer here. If auto review
-          is ON, they’ll automatically receive your review request SMS.
+          After you finish a job or call, add the customer here. If auto review is ON, they’ll
+          automatically receive your review request SMS.
         </Text>
 
         <Text style={styles.inputLabel}>Name (optional)</Text>
@@ -277,9 +266,7 @@ const ContactsScreen: React.FC = () => {
             pressed && !creating && styles.primaryButtonPressed,
           ]}
         >
-          <Text style={styles.primaryButtonText}>
-            {creating ? 'Adding…' : 'Add customer'}
-          </Text>
+          <Text style={styles.primaryButtonText}>{creating ? 'Adding…' : 'Add customer'}</Text>
         </Pressable>
       </View>
 
@@ -290,8 +277,8 @@ const ContactsScreen: React.FC = () => {
           <Text style={styles.badge}>{customers.length}</Text>
         </View>
         <Text style={styles.cardDescription}>
-          Tap "Send review" to send your current Google review SMS template to a
-          customer, or edit/delete as needed.
+          Tap "Send review" to send your current Google review SMS template to a customer.
+          Edit/delete is on the left.
         </Text>
 
         {customers.length === 0 && !loading ? (
@@ -342,9 +329,7 @@ const ContactsScreen: React.FC = () => {
                       style={({ pressed }) => [
                         styles.smallPrimaryButton,
                         isSavingEdit && styles.smallPrimaryButtonDisabled,
-                        pressed &&
-                          !isSavingEdit &&
-                          styles.smallPrimaryButtonPressed,
+                        pressed && !isSavingEdit && styles.smallPrimaryButtonPressed,
                       ]}
                     >
                       <Text style={styles.smallPrimaryButtonText}>
@@ -358,9 +343,7 @@ const ContactsScreen: React.FC = () => {
                         pressed && styles.smallSecondaryButtonPressed,
                       ]}
                     >
-                      <Text style={styles.smallSecondaryButtonText}>
-                        Cancel
-                      </Text>
+                      <Text style={styles.smallSecondaryButtonText}>Cancel</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -369,38 +352,13 @@ const ContactsScreen: React.FC = () => {
 
             return (
               <View key={c.id} style={styles.contactRow}>
+                {/* LEFT: details + edit/delete underneath */}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.contactName}>
-                    {c.name || 'Unnamed contact'}
-                  </Text>
-                  <Text style={styles.contactPhone}>
-                    {c.phone || 'No phone'}
-                  </Text>
-                  {c.email ? (
-                    <Text style={styles.contactEmail}>{c.email}</Text>
-                  ) : null}
-                </View>
+                  <Text style={styles.contactName}>{c.name || 'Unnamed contact'}</Text>
+                  <Text style={styles.contactPhone}>{c.phone || 'No phone'}</Text>
+                  {c.email ? <Text style={styles.contactEmail}>{c.email}</Text> : null}
 
-                <View style={styles.contactActionsColumn}>
-                  {/* Primary action: Send review */}
-                  <Pressable
-                    onPress={() => handleSendReview(c)}
-                    disabled={isSending}
-                    style={({ pressed }) => [
-                      styles.smallPrimaryButton,
-                      isSending && styles.smallPrimaryButtonDisabled,
-                      pressed &&
-                        !isSending &&
-                        styles.smallPrimaryButtonPressed,
-                    ]}
-                  >
-                    <Text style={styles.smallPrimaryButtonText}>
-                      {isSending ? 'Sending…' : 'Send review'}
-                    </Text>
-                  </Pressable>
-
-                  {/* Secondary actions: Edit + Delete */}
-                  <View style={styles.actionRow}>
+                  <View style={styles.leftActionsRow}>
                     <Pressable
                       onPress={() => startEdit(c)}
                       disabled={isDeleting}
@@ -409,10 +367,9 @@ const ContactsScreen: React.FC = () => {
                         pressed && styles.smallSecondaryButtonPressed,
                       ]}
                     >
-                      <Text style={styles.smallSecondaryButtonText}>
-                        Edit
-                      </Text>
+                      <Text style={styles.smallSecondaryButtonText}>Edit</Text>
                     </Pressable>
+
                     <Pressable
                       onPress={() => confirmDelete(c)}
                       disabled={isDeleting}
@@ -426,6 +383,23 @@ const ContactsScreen: React.FC = () => {
                       </Text>
                     </Pressable>
                   </View>
+                </View>
+
+                {/* RIGHT: Send review */}
+                <View style={styles.rightSendColumn}>
+                  <Pressable
+                    onPress={() => handleSendReview(c)}
+                    disabled={isSending}
+                    style={({ pressed }) => [
+                      styles.smallPrimaryButton,
+                      isSending && styles.smallPrimaryButtonDisabled,
+                      pressed && !isSending && styles.smallPrimaryButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.smallPrimaryButtonText}>
+                      {isSending ? 'Sending…' : 'Send review'}
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
             );
@@ -508,15 +482,16 @@ const styles = StyleSheet.create({
   contactPhone: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   contactEmail: { fontSize: 12, color: '#6B7280', marginTop: 2 },
 
-  contactActionsColumn: {
-    marginLeft: 10,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  actionRow: {
+  leftActionsRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
+    marginTop: 10,
+  },
+
+  rightSendColumn: {
+    marginLeft: 12,
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
   },
 
   // Main buttons

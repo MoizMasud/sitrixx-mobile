@@ -21,20 +21,63 @@ type Lead = {
   created_at: string;
 };
 
+function CenterState({
+  title,
+  subtitle,
+  onRetry,
+  loading,
+}: {
+  title: string;
+  subtitle?: string;
+  onRetry?: () => void;
+  loading?: boolean;
+}) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 6 }}>{title}</Text>
+      {subtitle ? (
+        <Text style={{ color: '#6B7280', textAlign: 'center', marginBottom: 12 }}>
+          {subtitle}
+        </Text>
+      ) : null}
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#4A00FF" />
+      ) : onRetry ? (
+        <TouchableOpacity
+          onPress={onRetry}
+          style={{
+            marginTop: 6,
+            backgroundColor: '#7C3AED',
+            paddingHorizontal: 18,
+            paddingVertical: 10,
+            borderRadius: 999,
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
 export const LeadsScreen: React.FC = () => {
   const { getLeads } = useClientApi();
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     setError(null);
+
     try {
       const data = await getLeads();
-      setLeads(data);
+      setLeads(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load leads');
+      setError(err?.message || 'Failed to fetch leads');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -43,11 +86,12 @@ export const LeadsScreen: React.FC = () => {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    load();
+    load({ silent: true });
   };
 
   const handleCallBack = (phone?: string | null) => {
@@ -80,8 +124,7 @@ export const LeadsScreen: React.FC = () => {
       ) : null}
 
       <Text style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-        {new Date(item.created_at).toLocaleString()} ·{' '}
-        {item.source || 'website_form'}
+        {new Date(item.created_at).toLocaleString()} · {item.source || 'website_form'}
       </Text>
 
       {item.phone ? (
@@ -103,23 +146,30 @@ export const LeadsScreen: React.FC = () => {
   );
 
   if (loading && !refreshing) {
+    return <CenterState title="Loading leads…" loading />;
+  }
+
+  if (error) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <ActivityIndicator size="large" color="#4A00FF" />
-      </View>
+      <CenterState
+        title="Couldn’t load leads"
+        subtitle={error}
+        onRetry={() => load()}
+      />
+    );
+  }
+
+  if (!leads.length) {
+    return (
+      <CenterState
+        title="No leads yet"
+        subtitle="Once a customer submits your website form or calls in, leads will show up here."
+      />
     );
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F4F4FF' }}>
-      {error ? (
-        <Text style={{ color: 'red', textAlign: 'center', marginTop: 12 }}>
-          {error}
-        </Text>
-      ) : null}
-
       <FlatList
         data={leads}
         keyExtractor={(item) => String(item.id)}
@@ -132,4 +182,3 @@ export const LeadsScreen: React.FC = () => {
     </View>
   );
 };
-

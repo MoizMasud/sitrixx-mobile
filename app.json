@@ -2,6 +2,7 @@
   "expo": {
     "name": "Sitrixx",
     "slug": "sitrixx",
+    "scheme": "sitrixx",
     "icon": "./assets/logo.png",
     "splash": {
       "image": "./assets/logo.png",
@@ -10,19 +11,15 @@
     },
     "version": "1.0.0",
     "orientation": "portrait",
-    
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-
-
-     "ios": {
-    "bundleIdentifier": "com.sitrixx.reviews",
-    "supportsTablet": true
-  },
-
-  "extra": {
-    "backendUrl": "https://sitrixx-website-backend.vercel.app"
-  },
+    "ios": {
+      "bundleIdentifier": "com.sitrixx.reviews",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
     "android": {
       "package": "com.sitrixx.reviews",
       "adaptiveIcon": {
@@ -34,6 +31,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "backendUrl": "https://sitrixx-website-backend.vercel.app",
+      "eas": {
+        "projectId": "7ced3ccd-62a5-4ec5-b640-9dcf3abfe71b"
+      }
     }
   }
 }

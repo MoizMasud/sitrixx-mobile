@@ -4,13 +4,16 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View, Text, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { LoginScreen } from './src/screens/LoginScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import { linking } from './src/navigation/linking';
+
 import { LeadsScreen } from './src/screens/LeadsScreen';
 import { ReviewsScreen } from './src/screens/ReviewsScreen';
 import ContactsScreen from './src/screens/ContactsScreen';
 import ReviewRequestScreen from './src/screens/ReviewRequestScreen';
-import { Ionicons } from '@expo/vector-icons';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -37,8 +40,12 @@ const LoadingScreen = () => (
       style={{ width: 96, height: 96, borderRadius: 24, marginBottom: 16 }}
       resizeMode="contain"
     />
-    <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 4 }}>Sitrixx</Text>
-    <Text style={{ color: '#6B7280', marginBottom: 12 }}>Loading your dashboard…</Text>
+    <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 4 }}>
+      Sitrixx
+    </Text>
+    <Text style={{ color: '#6B7280', marginBottom: 12 }}>
+      Loading your dashboard…
+    </Text>
     <ActivityIndicator size="large" color="#7C3AED" />
   </View>
 );
@@ -52,22 +59,46 @@ function AuthedTabs() {
         headerTitleStyle: { fontWeight: '600', fontSize: 18 },
         tabBarActiveTintColor: '#7C3AED',
         tabBarInactiveTintColor: '#9CA3AF',
-        tabBarStyle: { backgroundColor: '#FFFFFF', borderTopColor: '#E5E7EB' },
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#E5E7EB',
+        },
         tabBarIcon: ({ color, size }) => {
           if (route.name === 'Leads') {
-            return <Ionicons name="people-outline" size={size} color={color} />;
+            return (
+              <Ionicons
+                name="people-outline"
+                size={size}
+                color={color}
+              />
+            );
           }
           if (route.name === 'Reviews') {
-            return <Ionicons name="star-outline" size={size} color={color} />;
+            return (
+              <Ionicons
+                name="star-outline"
+                size={size}
+                color={color}
+              />
+            );
           }
           if (route.name === 'Requests') {
             return (
-              <Ionicons name="chatbubbles-outline" size={size} color={color} />
+              <Ionicons
+                name="chatbubbles-outline"
+                size={size}
+                color={color}
+              />
             );
           }
           if (route.name === 'Contacts') {
-            return <Ionicons name="book-outline" size={size} color={color} />;
-            // or "person-add-outline" if you prefer
+            return (
+              <Ionicons
+                name="book-outline"
+                size={size}
+                color={color}
+              />
+            );
           }
           return null;
         },
@@ -86,11 +117,10 @@ function AuthedTabs() {
         options={{ title: 'Contacts' }}
       />
     </Tab.Navigator>
-
   );
 }
 
-const RootNavigator = () => {
+function RootNavigator() {
   const { session, loading } = useAuth();
 
   if (loading) {
@@ -106,15 +136,14 @@ const RootNavigator = () => {
       )}
     </Stack.Navigator>
   );
-};
+}
 
 export default function App() {
   return (
     <AuthProvider>
-      <NavigationContainer theme={SitrixxTheme}>
+      <NavigationContainer theme={SitrixxTheme} linking={linking}>
         <RootNavigator />
       </NavigationContainer>
     </AuthProvider>
   );
 }
-

@@ -20,38 +20,93 @@ type Review = {
   created_at: string;
 };
 
+function CenterState({
+  title,
+  subtitle,
+  onRetry,
+  loading,
+}: {
+  title: string;
+  subtitle?: string;
+  onRetry?: () => void;
+  loading?: boolean;
+}) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 6 }}>{title}</Text>
+      {subtitle ? (
+        <Text style={{ color: '#6B7280', textAlign: 'center', marginBottom: 12 }}>
+          {subtitle}
+        </Text>
+      ) : null}
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#4A00FF" />
+      ) : onRetry ? (
+        <TouchableOpacity
+          onPress={onRetry}
+          style={{
+            marginTop: 6,
+            backgroundColor: '#7C3AED',
+            paddingHorizontal: 18,
+            paddingVertical: 10,
+            borderRadius: 999,
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
 export const ReviewsScreen: React.FC = () => {
   const { getReviews, getClientInfo } = useClientApi();
+
   const [reviews, setReviews] = useState<Review[]>([]);
   const [googleLink, setGoogleLink] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const [error, setError] = useState<string | null>(null);
+  const [clientInfoWarning, setClientInfoWarning] = useState<string | null>(null);
+
+  const load = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
+
     setError(null);
+    setClientInfoWarning(null);
+
+    // 1) Reviews: treat as primary data
     try {
-      const [reviewsData, client] = await Promise.all([
-        getReviews(),
-        getClientInfo(),
-      ]);
-      setReviews(reviewsData);
+      const reviewsData = await getReviews();
+      setReviews(Array.isArray(reviewsData) ? reviewsData : []);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to fetch reviews');
+    }
+
+    // 2) Client info (google link): OPTIONAL — don’t fail the whole screen if missing
+    try {
+      const client = await getClientInfo();
       setGoogleLink(client?.google_review_link || null);
     } catch (err: any) {
-      setError(err.message || 'Failed to load reviews');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setGoogleLink(null);
+      setClientInfoWarning(err?.message || 'Client info not found (QR hidden).');
     }
+
+    setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    load();
+    load({ silent: true });
   };
 
   const renderItem = ({ item }: { item: Review }) => (
@@ -76,9 +131,7 @@ export const ReviewsScreen: React.FC = () => {
         {'⭐'.repeat(item.rating)} ({item.rating}/5)
       </Text>
 
-      {item.comments ? (
-        <Text style={{ color: '#555' }}>{item.comments}</Text>
-      ) : null}
+      {item.comments ? <Text style={{ color: '#555' }}>{item.comments}</Text> : null}
 
       <Text style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
         {new Date(item.created_at).toLocaleString()}
@@ -87,56 +140,57 @@ export const ReviewsScreen: React.FC = () => {
   );
 
   const renderHeader = () => {
-    if (!googleLink) return null;
-
     return (
-      <View
-        style={{
-          alignItems: 'center',
-          paddingVertical: 16,
-        }}
-      >
-        <Text
-          style={{
-            fontWeight: '600',
-            fontSize: 16,
-            marginBottom: 8,
-            color: '#111',
-          }}
-        >
-          Google Reviews QR
-        </Text>
-        <QRCode value={googleLink} size={140} />
-
-        <TouchableOpacity
-          onPress={() => Linking.openURL(googleLink)}
-          style={{ marginTop: 12 }}
-        >
-          <Text style={{ color: '#4A00FF', textDecorationLine: 'underline' }}>
-            Open Google Reviews page
+      <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+        {clientInfoWarning ? (
+          <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 8 }}>
+            {clientInfoWarning}
           </Text>
-        </TouchableOpacity>
+        ) : null}
+
+        {googleLink ? (
+          <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+            <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: 10 }}>
+              Google Reviews QR
+            </Text>
+            <QRCode value={googleLink} size={140} />
+
+            <TouchableOpacity onPress={() => Linking.openURL(googleLink)} style={{ marginTop: 12 }}>
+              <Text style={{ color: '#4A00FF', textDecorationLine: 'underline' }}>
+                Open Google Reviews page
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
     );
   };
 
   if (loading && !refreshing) {
+    return <CenterState title="Loading reviews…" loading />;
+  }
+
+  if (error) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <ActivityIndicator size="large" color="#4A00FF" />
-      </View>
+      <CenterState
+        title="Couldn’t load reviews"
+        subtitle={error}
+        onRetry={() => load()}
+      />
+    );
+  }
+
+  if (!reviews.length) {
+    return (
+      <CenterState
+        title="No reviews yet"
+        subtitle="When customers leave reviews (or when we sync them), they’ll show up here."
+      />
     );
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F4F4FF' }}>
-      {error ? (
-        <Text style={{ color: 'red', textAlign: 'center', marginTop: 12 }}>
-          {error}
-        </Text>
-      ) : null}
       <FlatList
         data={reviews}
         keyExtractor={(item) => String(item.id)}
@@ -145,7 +199,7 @@ export const ReviewsScreen: React.FC = () => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        contentContainerStyle={{ paddingVertical: 8 }}
+        contentContainerStyle={{ paddingBottom: 18 }}
       />
     </View>
   );

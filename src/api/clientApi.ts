@@ -1,20 +1,19 @@
 // src/api/clientApi.ts
+import { useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export type ClientInfo = {
   id: string;
   business_name: string;
-  owner_email: string;
   website_url?: string | null;
   booking_link?: string | null;
   google_review_link?: string | null;
   twilio_number?: string | null;
   forwarding_phone?: string | null;
-  custom_sms_template?: string | null;   // missed call
-  review_sms_template?: string | null;   // NEW
+  custom_sms_template?: string | null;
+  review_sms_template?: string | null;
   auto_review_enabled?: boolean | null;
 };
-
 
 export type CustomerContact = {
   id: string;
@@ -28,7 +27,8 @@ export type CustomerContact = {
 };
 
 const BACKEND_URL = 'https://sitrixx-website-backend.vercel.app';
-const DEFAULT_CLIENT_ID = 'moiz-test'; // your test biz
+
+type ApiErrorBody = { ok?: boolean; error?: string; message?: string };
 
 export const useClientApi = () => {
   const { session } = useAuth();
@@ -38,67 +38,192 @@ export const useClientApi = () => {
     return session.access_token as string;
   };
 
-  const getLeads = async (clientId: string = DEFAULT_CLIENT_ID) => {
-    const token = ensureToken();
-
-    const res = await fetch(
-      `${BACKEND_URL}/api/leads?clientId=${encodeURIComponent(clientId)}`,
-      {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-
-    const body = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error(body.error || `Failed to load leads (${res.status})`);
-    }
-
-    return body.leads || [];
+  const parseError = async (res: Response) => {
+    const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
+    return body?.error || body?.message || `Request failed (${res.status})`;
   };
 
-  const getReviews = async (clientId: string = DEFAULT_CLIENT_ID) => {
+  const cachedClientIdRef = useRef<string | null>(null);
+
+
+
+
+  const listClients = async (): Promise<ClientInfo[]> => {
     const token = ensureToken();
 
-    const res = await fetch(
-      `${BACKEND_URL}/api/reviews?clientId=${encodeURIComponent(clientId)}`,
-      {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-
-    const body = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error(body.error || `Failed to load reviews (${res.status})`);
-    }
-
-    return body.reviews || [];
-  };
-
-  const getClientInfo = async (
-    clientId: string = DEFAULT_CLIENT_ID
-  ): Promise<ClientInfo | null> => {
-    const token = ensureToken();
-
-    const res = await fetch(`${BACKEND_URL}/api/clients`, {
+    const res = await fetch(`${BACKEND_URL}/api/clients?mine=1`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
     });
 
+
+    if (!res.ok) throw new Error(await parseError(res));
+
     const body = await res.json().catch(() => ({} as any));
-
-    if (!res.ok) {
-      throw new Error(body.error || 'Failed to fetch clients');
-    }
-
-    const clients: ClientInfo[] = body.clients || [];
-    return clients.find((c) => c.id === clientId) || null;
+    return (body.clients || []) as ClientInfo[];
   };
 
-    const updateCustomer = async (input: {
+
+  const resolveClientId = async (): Promise<string> => {
+    if (cachedClientIdRef.current) return cachedClientIdRef.current;
+    const clients = await listClients();
+    if (!clients.length) throw new Error('No client found...');
+    cachedClientIdRef.current = clients[0].id;
+    return cachedClientIdRef.current;
+  };
+  // -------------------------
+  // Leads
+  // -------------------------
+  const getLeads = async (clientId?: string) => {
+    const token = ensureToken();
+    const id = clientId ?? (await resolveClientId());
+
+    const res = await fetch(
+      `${BACKEND_URL}/api/leads?clientId=${encodeURIComponent(id)}`,
+      { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+    );
+
+    if (!res.ok) throw new Error(await parseError(res));
+
+    const body = await res.json().catch(() => ({} as any));
+    return body.leads || [];
+  };
+
+  // -------------------------
+  // Reviews
+  // -------------------------
+  const getReviews = async (clientId?: string) => {
+    const token = ensureToken();
+    const id = clientId ?? (await resolveClientId());
+
+    const res = await fetch(
+      `${BACKEND_URL}/api/reviews?clientId=${encodeURIComponent(id)}`,
+      { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+    );
+
+    if (!res.ok) throw new Error(await parseError(res));
+
+    const body = await res.json().catch(() => ({} as any));
+    return body.reviews || [];
+  };
+
+  // -------------------------
+  // Client Info
+  // -------------------------
+  const getClientInfo = async (clientId?: string): Promise<ClientInfo | null> => {
+    const id = clientId ?? (await resolveClientId());
+    const clients = await listClients();
+    return clients.find((c) => c.id === id) || null;
+  };
+
+  const updateClientInfo = async (
+    updates: Partial<ClientInfo> & { id?: string },
+  ): Promise<ClientInfo> => {
+    const token = ensureToken();
+    const id = updates.id ?? (await resolveClientId());
+
+    const res = await fetch(`${BACKEND_URL}/api/clients`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        id,
+        google_review_link: updates.google_review_link,
+        twilio_number: updates.twilio_number,
+        forwarding_phone: updates.forwarding_phone,
+        custom_sms_template: updates.custom_sms_template,
+        review_sms_template: updates.review_sms_template,
+        auto_review_enabled:
+          typeof updates.auto_review_enabled === 'boolean'
+            ? updates.auto_review_enabled
+            : undefined,
+      }),
+    });
+
+    if (!res.ok) throw new Error(await parseError(res));
+
+    const body = await res.json().catch(() => ({} as any));
+    return body.client as ClientInfo;
+  };
+
+  const updateClientAutoReview = async ({
+    clientId,
+    autoReviewEnabled,
+  }: {
+    clientId?: string;
+    autoReviewEnabled: boolean;
+  }) => {
+    const token = ensureToken();
+    const id = clientId ?? (await resolveClientId());
+
+    const res = await fetch(`${BACKEND_URL}/api/clients`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id,
+        auto_review_enabled: autoReviewEnabled,
+      }),
+    });
+
+    if (!res.ok) throw new Error(await parseError(res));
+
+    const body = await res.json().catch(() => ({} as any));
+    return body.client;
+  };
+
+  // -------------------------
+  // Customers / Contacts
+  // -------------------------
+  const getCustomers = async (clientId?: string): Promise<CustomerContact[]> => {
+    const token = ensureToken();
+    const id = clientId ?? (await resolveClientId());
+
+    const res = await fetch(
+      `${BACKEND_URL}/api/customers?clientId=${encodeURIComponent(id)}`,
+      { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+    );
+
+    if (!res.ok) throw new Error(await parseError(res));
+
+    const body = await res.json().catch(() => ({} as any));
+    return (body.customers || []) as CustomerContact[];
+  };
+
+  const createCustomer = async (input: {
+    clientId?: string;
+    name?: string;
+    phone: string;
+    email?: string;
+  }): Promise<CustomerContact> => {
+    const token = ensureToken();
+    const id = input.clientId ?? (await resolveClientId());
+
+    const res = await fetch(`${BACKEND_URL}/api/customers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        clientId: id,
+        name: input.name,
+        phone: input.phone,
+        email: input.email,
+      }),
+    });
+
+    if (!res.ok) throw new Error(await parseError(res));
+
+    const body = await res.json().catch(() => ({} as any));
+    return body.customer as CustomerContact;
+  };
+
+  const updateCustomer = async (input: {
     id: string;
     name?: string;
     phone?: string;
@@ -120,12 +245,9 @@ export const useClientApi = () => {
       }),
     });
 
+    if (!res.ok) throw new Error(await parseError(res));
+
     const body = await res.json().catch(() => ({} as any));
-
-    if (!res.ok) {
-      throw new Error(body.error || 'Failed to update customer');
-    }
-
     return body.customer as CustomerContact;
   };
 
@@ -141,143 +263,14 @@ export const useClientApi = () => {
       body: JSON.stringify({ id: input.id }),
     });
 
-    const body = await res.json().catch(() => ({} as any));
-
-    if (!res.ok) {
-      throw new Error(body.error || 'Failed to delete customer');
-    }
+    if (!res.ok) throw new Error(await parseError(res));
   };
 
-
-
-  const updateClientInfo = async (
-    updates: Partial<ClientInfo> & { id?: string }
-  ): Promise<ClientInfo> => {
-    const token = ensureToken();
-    const id = updates.id ?? DEFAULT_CLIENT_ID;
-
-    const res = await fetch(`${BACKEND_URL}/api/clients`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        id,
-        google_review_link: updates.google_review_link,
-        twilio_number: updates.twilio_number,
-        forwarding_phone: updates.forwarding_phone,
-        custom_sms_template: updates.custom_sms_template,
-        review_sms_template: updates.review_sms_template,  // NEW
-        auto_review_enabled:
-          typeof updates.auto_review_enabled === 'boolean'
-            ? updates.auto_review_enabled
-            : undefined,
-      }),
-    });
-
-    const body = await res.json().catch(() => ({} as any));
-
-    if (!res.ok) {
-      throw new Error(body.error || 'Failed to update client');
-    }
-
-    return body.client as ClientInfo;
-  };
-
-
-  const getCustomers = async (
-    clientId: string = DEFAULT_CLIENT_ID
-  ): Promise<CustomerContact[]> => {
-    const token = ensureToken();
-
-    const res = await fetch(
-      `${BACKEND_URL}/api/customers?clientId=${encodeURIComponent(clientId)}`,
-      {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-
-    const body = await res.json().catch(() => ({} as any));
-
-    if (!res.ok) {
-      throw new Error(body.error || 'Failed to fetch customers');
-    }
-
-    return (body.customers || []) as CustomerContact[];
-  };
-
-
-  const createCustomer = async (input: {
-    clientId?: string;
-    name?: string;
-    phone: string;
-    email?: string;
-  }): Promise<CustomerContact> => {
-    const token = ensureToken();
-    const clientId = input.clientId ?? DEFAULT_CLIENT_ID;
-
-    const res = await fetch(`${BACKEND_URL}/api/customers`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        clientId,
-        name: input.name,
-        phone: input.phone,
-        email: input.email,
-      }),
-    });
-
-    const body = await res.json().catch(() => ({} as any));
-
-    if (!res.ok) {
-      throw new Error(body.error || 'Failed to create customer');
-    }
-
-    return body.customer as CustomerContact;
-  };
-
-
-  // 🔹 Toggle auto review mode on/off for the business
-  const updateClientAutoReview = async ({
-    clientId = DEFAULT_CLIENT_ID,
-    autoReviewEnabled,
-  }: {
-    clientId?: string;
-    autoReviewEnabled: boolean;
-  }) => {
-    const token = ensureToken();
-
-    const res = await fetch(`${BACKEND_URL}/api/clients`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: clientId,
-        auto_review_enabled: autoReviewEnabled,
-      }),
-    });
-
-    const body = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error(
-        body.error || `Failed to update client settings (${res.status})`,
-      );
-    }
-
-    return body.client;
-  };
-
-  // 🔹 Manually send a review request SMS to a saved contact
+  // -------------------------
+  // Review Request (manual)
+  // -------------------------
   const sendReviewRequest = async ({
-    clientId = DEFAULT_CLIENT_ID,
+    clientId,
     customerName,
     customerPhone,
   }: {
@@ -286,6 +279,7 @@ export const useClientApi = () => {
     customerPhone: string;
   }) => {
     const token = ensureToken();
+    const id = clientId ?? (await resolveClientId());
 
     const res = await fetch(`${BACKEND_URL}/api/review-request`, {
       method: 'POST',
@@ -294,36 +288,35 @@ export const useClientApi = () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        clientId,
+        clientId: id,
         name: customerName,
         phone: customerPhone,
       }),
     });
 
-    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(await parseError(res));
 
-    if (!res.ok) {
-      throw new Error(
-        body.error || `Failed to send review request (${res.status})`,
-      );
-    }
-
-    return body;
+    return await res.json().catch(() => ({}));
   };
 
   return {
+    // client
+    listClients,
+    getClientInfo,
+    updateClientInfo,
+    updateClientAutoReview,
+
+    // data
     getLeads,
     getReviews,
-    getClientInfo,
     getCustomers,
+
+    // customers
     createCustomer,
-    updateClientAutoReview,
-    sendReviewRequest,
-    updateClientInfo,
     updateCustomer,
     deleteCustomer,
+
+    // actions
+    sendReviewRequest,
   };
 };
-
-
-

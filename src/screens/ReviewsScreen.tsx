@@ -32,8 +32,18 @@ function CenterState({
   loading?: boolean;
 }) {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 6 }}>{title}</Text>
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        backgroundColor: '#F4F4FF',
+      }}
+    >
+      <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 6 }}>
+        {title}
+      </Text>
       {subtitle ? (
         <Text style={{ color: '#6B7280', textAlign: 'center', marginBottom: 12 }}>
           {subtitle}
@@ -84,6 +94,7 @@ export const ReviewsScreen: React.FC = () => {
       setReviews(Array.isArray(reviewsData) ? reviewsData : []);
     } catch (err: any) {
       setError(err?.message || 'Failed to fetch reviews');
+      setReviews([]);
     }
 
     // 2) Client info (google link): OPTIONAL — don’t fail the whole screen if missing
@@ -92,7 +103,7 @@ export const ReviewsScreen: React.FC = () => {
       setGoogleLink(client?.google_review_link || null);
     } catch (err: any) {
       setGoogleLink(null);
-      setClientInfoWarning(err?.message || 'Client info not found (QR hidden).');
+      setClientInfoWarning(err?.message || 'Client info not found.');
     }
 
     setLoading(false);
@@ -142,26 +153,80 @@ export const ReviewsScreen: React.FC = () => {
   const renderHeader = () => {
     return (
       <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+        {/* Optional warning if client info couldn't load */}
         {clientInfoWarning ? (
           <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 8 }}>
             {clientInfoWarning}
           </Text>
         ) : null}
 
-        {googleLink ? (
-          <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-            <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: 10 }}>
-              Google Reviews QR
-            </Text>
-            <QRCode value={googleLink} size={140} />
+        {/* ✅ Always show QR section */}
+        <View
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            padding: 14,
+            shadowColor: '#000',
+            shadowOpacity: 0.05,
+            shadowRadius: 6,
+            elevation: 2,
+            marginBottom: 12,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ fontWeight: '800', fontSize: 16, marginBottom: 6 }}>
+            Google Reviews QR
+          </Text>
 
-            <TouchableOpacity onPress={() => Linking.openURL(googleLink)} style={{ marginTop: 12 }}>
-              <Text style={{ color: '#4A00FF', textDecorationLine: 'underline' }}>
-                Open Google Reviews page
+          {googleLink ? (
+            <>
+              <QRCode value={googleLink} size={160} />
+
+              <TouchableOpacity
+                onPress={() => Linking.openURL(googleLink)}
+                style={{ marginTop: 12 }}
+              >
+                <Text style={{ color: '#4A00FF', textDecorationLine: 'underline' }}>
+                  Open Google Reviews page
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={{ marginTop: 8, fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                Put this QR on your counter, invoices, or job completion card to get more reviews.
               </Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
+            </>
+          ) : (
+            <>
+              <View
+                style={{
+                  width: 160,
+                  height: 160,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  backgroundColor: '#F9FAFB',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 10,
+                }}
+              >
+                <Text style={{ color: '#6B7280', fontSize: 12, textAlign: 'center' }}>
+                  Add your Google review link in “Review Requests” to generate a QR code.
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Reviews section title + empty hint */}
+        <View style={{ marginBottom: 6 }}>
+          <Text style={{ fontWeight: '800', fontSize: 16 }}>Recent reviews</Text>
+          {reviews.length === 0 ? (
+            <Text style={{ color: '#6B7280', marginTop: 4, fontSize: 12 }}>
+              No reviews yet. Share your QR code to get your first one.
+            </Text>
+          ) : null}
+        </View>
       </View>
     );
   };
@@ -171,21 +236,11 @@ export const ReviewsScreen: React.FC = () => {
   }
 
   if (error) {
+    // Still keep your existing behavior: if reviews API fails, show error screen.
+    // QR could theoretically still show, but you said "reviews page" should show QR always —
+    // if you want QR even on error, tell me and I’ll adjust.
     return (
-      <CenterState
-        title="Couldn’t load reviews"
-        subtitle={error}
-        onRetry={() => load()}
-      />
-    );
-  }
-
-  if (!reviews.length) {
-    return (
-      <CenterState
-        title="No reviews yet"
-        subtitle="When customers leave reviews (or when we sync them), they’ll show up here."
-      />
+      <CenterState title="Couldn’t load reviews" subtitle={error} onRetry={() => load()} />
     );
   }
 
@@ -196,10 +251,10 @@ export const ReviewsScreen: React.FC = () => {
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         ListHeaderComponent={renderHeader}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingBottom: 18 }}
+        // optional: keeps layout nice when empty (still shows header)
+        ListEmptyComponent={<View style={{ height: 8 }} />}
       />
     </View>
   );

@@ -4,16 +4,15 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View, Text, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import LoginScreen from './src/screens/LoginScreen';
+import  LoginScreen  from './src/screens/LoginScreen';
 import { linking } from './src/navigation/linking';
-
 import { LeadsScreen } from './src/screens/LeadsScreen';
 import { ReviewsScreen } from './src/screens/ReviewsScreen';
 import ContactsScreen from './src/screens/ContactsScreen';
 import ReviewRequestScreen from './src/screens/ReviewRequestScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import { Ionicons } from '@expo/vector-icons';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -59,45 +58,25 @@ function AuthedTabs() {
         headerTitleStyle: { fontWeight: '600', fontSize: 18 },
         tabBarActiveTintColor: '#7C3AED',
         tabBarInactiveTintColor: '#9CA3AF',
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E7EB',
-        },
+        tabBarStyle: { backgroundColor: '#FFFFFF', borderTopColor: '#E5E7EB' },
         tabBarIcon: ({ color, size }) => {
           if (route.name === 'Leads') {
-            return (
-              <Ionicons
-                name="people-outline"
-                size={size}
-                color={color}
-              />
-            );
+            return <Ionicons name="people-outline" size={size} color={color} />;
           }
           if (route.name === 'Reviews') {
-            return (
-              <Ionicons
-                name="star-outline"
-                size={size}
-                color={color}
-              />
-            );
+            return <Ionicons name="star-outline" size={size} color={color} />;
           }
           if (route.name === 'Requests') {
             return (
-              <Ionicons
-                name="chatbubbles-outline"
-                size={size}
-                color={color}
-              />
+              <Ionicons name="chatbubbles-outline" size={size} color={color} />
             );
           }
           if (route.name === 'Contacts') {
+            return <Ionicons name="book-outline" size={size} color={color} />;
+          }
+          if (route.name === 'Settings') {
             return (
-              <Ionicons
-                name="book-outline"
-                size={size}
-                color={color}
-              />
+              <Ionicons name="settings-outline" size={size} color={color} />
             );
           }
           return null;
@@ -116,16 +95,15 @@ function AuthedTabs() {
         component={ContactsScreen}
         options={{ title: 'Contacts' }}
       />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }
 
-function RootNavigator() {
+const RootNavigator = () => {
   const { session, loading } = useAuth();
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  if (loading) return <LoadingScreen />;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -136,7 +114,7 @@ function RootNavigator() {
       )}
     </Stack.Navigator>
   );
-}
+};
 
 export default function App() {
   return (

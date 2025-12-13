@@ -1,42 +1,10 @@
 // src/screens/ResetPasswordScreen.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
-import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 
-export default function ResetPasswordScreen() {
+export default function ResetPasswordScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const handleUrl = async (url: string) => {
-      try {
-        // Supabase mobile deep links often come as "code" flow
-        const { data, error } = await supabase.auth.exchangeCodeForSession(url);
-        if (error) {
-          // Some setups won’t use code exchange; still allow user to try if session already exists
-
-        } else {
-
-        }
-      } finally {
-        setReady(true);
-      }
-    };
-
-    // initial url
-    Linking.getInitialURL().then((url) => {
-      if (url) handleUrl(url);
-      else setReady(true);
-    });
-
-    // subsequent opens
-    const sub = Linking.addEventListener('url', (event) => {
-      handleUrl(event.url);
-    });
-
-    return () => sub.remove();
-  }, []);
 
   const onSave = async () => {
     if (password.length < 8) {
@@ -51,9 +19,8 @@ export default function ResetPasswordScreen() {
     }
 
     Alert.alert('Success', 'Password updated. You can now log in.');
+    navigation.reset({ index: 0, routes: [{ name: 'Auth' }] });
   };
-
-  if (!ready) return <Text>Loading reset flow...</Text>;
 
   return (
     <View style={{ padding: 16, gap: 12 }}>

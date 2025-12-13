@@ -1,10 +1,13 @@
-import * as Linking from 'expo-linking';
+import * as Linking from "expo-linking";
 
 export const linking = {
-  prefixes: [Linking.createURL('/')],
+  prefixes: [
+    Linking.createURL("/"),  // exp://... (dev)
+    "sitrixx://",            // production scheme
+  ],
   config: {
     screens: {
-      ResetPassword: 'reset-password',
+      ResetPassword: "reset-password",
     },
   },
 };

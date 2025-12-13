@@ -1,5 +1,5 @@
 // App.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -14,7 +14,7 @@ import ContactsScreen from './src/screens/ContactsScreen';
 import ReviewRequestScreen from './src/screens/ReviewRequestScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { Ionicons } from '@expo/vector-icons';
-
+import * as Linking from 'expo-linking';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Admin screens
@@ -24,6 +24,10 @@ import AdminClientEditScreen from './src/screens/admin/AdminClientEditScreen';
 import AdminClientUsersScreen from './src/screens/admin/AdminClientUsersScreen';
 import AdminUserCreateScreen from './src/screens/admin/AdminUserCreateScreen';
 import AdminUserEditScreen from './src/screens/admin/AdminUserEditScreen';
+import { supabase } from './src/lib/supabase';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import VerifyCodeScreen from './src/screens/VerifyCodeScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -138,7 +142,12 @@ const RootNavigator = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!session ? (
-        <Stack.Screen name="Auth" component={LoginScreen} />
+        <>
+          <Stack.Screen name="Auth" component={LoginScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} />
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        </>
       ) : !profile ? (
         <Stack.Screen name="ProfileGate" component={ProfileGate} />
       ) : profile.needs_password_change ? (
@@ -148,9 +157,51 @@ const RootNavigator = () => {
       )}
     </Stack.Navigator>
   );
-};
-
+}
 export default function App() {
+  useEffect(() => {
+    (async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (!initialUrl) return;
+
+      const parsed = Linking.parse(initialUrl);
+      const code = parsed.queryParams?.code as string | undefined;
+
+      if (code) {
+        await supabase.auth.exchangeCodeForSession(code);
+      }
+    })();
+  }, []);
+
+    useEffect(() => {
+    const sub = Linking.addEventListener('url', async ({ url }) => {
+      const parsed = Linking.parse(url);
+
+      // PKCE flow (newer Supabase links)
+      const code = parsed.queryParams?.code as string | undefined;
+      if (code) {
+        await supabase.auth.exchangeCodeForSession(code);
+        return;
+      }
+
+      // Legacy hash-based flow
+      const hash = url.split('#')[1];
+      if (!hash) return;
+
+      const params = new URLSearchParams(hash);
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+
+      if (access_token && refresh_token) {
+        await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
   return (
     <AuthProvider>
       <NavigationContainer theme={SitrixxTheme} linking={linking}>

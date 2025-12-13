@@ -9,21 +9,16 @@ import {
   Platform,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 
-const REDIRECT_TO = 'sitrixx://reset-password';
-
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }: any) {
   const { signIn } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [sendingReset, setSendingReset] = useState(false);
 
   const handleLogin = async () => {
     setErrorMsg('');
@@ -37,28 +32,9 @@ export default function LoginScreen() {
     }
   };
 
-  const handleForgotPassword = async () => {
-    const emailTrimmed = email.trim();
-    if (!emailTrimmed) {
-      setErrorMsg('Enter your email first, then tap “Forgot password?”');
-      return;
-    }
-
-    setErrorMsg('');
-    setSendingReset(true);
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {
-        redirectTo: REDIRECT_TO,
-      });
-      if (error) throw error;
-
-      Alert.alert('Check your email', 'We sent you a password reset link.');
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to send reset email');
-    } finally {
-      setSendingReset(false);
-    }
+  const handleForgotPassword = () => {
+    // OTP reset flow: send code from ForgotPasswordScreen
+    navigation.navigate('ForgotPassword', { email });
   };
 
   return (
@@ -121,12 +97,9 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           onPress={handleForgotPassword}
-          disabled={sendingReset}
           style={{ alignSelf: 'flex-end', paddingVertical: 6 }}
         >
-          <Text style={{ color: '#4A00FF' }}>
-            {sendingReset ? 'Sending…' : 'Forgot password?'}
-          </Text>
+          <Text style={{ color: '#4A00FF' }}>Forgot password?</Text>
         </TouchableOpacity>
 
         {errorMsg ? <Text style={{ color: '#EF4444', marginBottom: 8 }}>{errorMsg}</Text> : null}

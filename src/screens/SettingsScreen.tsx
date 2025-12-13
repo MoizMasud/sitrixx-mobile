@@ -13,6 +13,7 @@ import {
 import { useClientApi, ClientInfo } from '../api/clientApi';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
 export const SettingsScreen: React.FC = () => {
   const api = useClientApi();
@@ -111,10 +112,14 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const goAdmin = () => {
-    // With your new App.tsx:
-    // Root Stack: Main -> AuthedNavigator
-    // AuthedNavigator: Tabs + Admin
     navigation.navigate('Main', { screen: 'Admin' });
+  };
+
+  const confirmLogout = () => {
+    Alert.alert('Logout?', 'You will need to sign in again to access your dashboard.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: signOut },
+    ]);
   };
 
   if (loading) {
@@ -125,6 +130,32 @@ export const SettingsScreen: React.FC = () => {
       </View>
     );
   }
+
+  // ✅ Shared "Account" footer section for all states
+  const AccountFooter = (
+    <View style={styles.accountCard}>
+      <View style={styles.accountHeader}>
+        <View style={styles.accountIconWrap}>
+          <Ionicons name="person-circle-outline" size={26} color="#111827" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.accountTitle}>Account</Text>
+          <Text style={styles.accountDesc}>
+            {profile?.email ? `Signed in as ${profile.email}` : 'Signed in'}
+          </Text>
+        </View>
+      </View>
+
+      <Pressable
+        onPress={confirmLogout}
+        style={({ pressed }) => [styles.logoutBtn, pressed && { opacity: 0.92 }]}
+      >
+        <Ionicons name="log-out-outline" size={18} color="#fff" />
+        <Text style={styles.logoutBtnText}>Logout</Text>
+      </Pressable>
+
+    </View>
+  );
 
   if (noClient) {
     return (
@@ -139,16 +170,14 @@ export const SettingsScreen: React.FC = () => {
           <Text style={styles.primaryButtonText}>Retry</Text>
         </Pressable>
 
-        {/* ✅ Admin entry still useful even if no client */}
         {profile?.role === 'admin' ? (
           <Pressable onPress={goAdmin} style={styles.adminButton}>
             <Text style={styles.adminButtonText}>Open Admin Panel</Text>
           </Pressable>
         ) : null}
 
-        <Pressable onPress={signOut} style={styles.linkButton}>
-          <Text style={styles.linkText}>Logout</Text>
-        </Pressable>
+        {/* ✅ Big, clear logout */}
+        {AccountFooter}
       </View>
     );
   }
@@ -170,9 +199,8 @@ export const SettingsScreen: React.FC = () => {
           </Pressable>
         ) : null}
 
-        <Pressable onPress={signOut} style={styles.linkButton}>
-          <Text style={styles.linkText}>Logout</Text>
-        </Pressable>
+        {/* ✅ Big, clear logout */}
+        {AccountFooter}
       </View>
     );
   }
@@ -196,10 +224,7 @@ export const SettingsScreen: React.FC = () => {
 
           <Pressable
             onPress={goAdmin}
-            style={({ pressed }) => [
-              styles.adminButtonInline,
-              pressed && { opacity: 0.9 },
-            ]}
+            style={({ pressed }) => [styles.adminButtonInline, pressed && { opacity: 0.9 }]}
           >
             <Text style={styles.adminButtonInlineText}>Open Admin Panel</Text>
           </Pressable>
@@ -265,16 +290,13 @@ export const SettingsScreen: React.FC = () => {
           pressed && !saving && { opacity: 0.9 },
         ]}
       >
-        {saving ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.saveButtonText}>Save</Text>
-        )}
+        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>Save</Text>}
       </Pressable>
 
-      <Pressable onPress={signOut} style={styles.linkButton}>
-        <Text style={styles.linkText}>Logout</Text>
-      </Pressable>
+      {/* ✅ Big, clear logout section */}
+      {AccountFooter}
+
+      <View style={{ height: 18 }} />
     </ScrollView>
   );
 };
@@ -348,12 +370,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 999,
     alignItems: 'center',
+    marginBottom: 8,
   },
   saveButtonDisabled: { backgroundColor: '#9CA3AF' },
   saveButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
-
-  linkButton: { marginTop: 14, alignItems: 'center' },
-  linkText: { color: '#6B7280', textDecorationLine: 'underline' },
 
   // ✅ Admin button styles
   adminButton: {
@@ -375,5 +395,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   adminButtonInlineText: { color: '#7C3AED', fontWeight: '800' },
-});
 
+  // ✅ NEW: Account + Logout (very visible)
+  accountCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  accountHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  accountIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountTitle: { fontSize: 15, fontWeight: '900', color: '#111827' },
+  accountDesc: { marginTop: 2, fontSize: 12, color: '#6B7280' },
+
+  logoutBtn: {
+    marginTop: 12,
+    backgroundColor: '#DC2626',
+    paddingVertical: 14,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  logoutBtnText: { color: '#fff', fontWeight: '900', fontSize: 16 },
+  logoutHint: { marginTop: 10, fontSize: 12, color: '#6B7280' },
+});

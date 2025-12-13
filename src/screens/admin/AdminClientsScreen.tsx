@@ -39,6 +39,9 @@ export default function AdminClientsScreen({ navigation }: any) {
   // ✅ debounce focus refresh (prevents focus/unfocus spam)
   const focusDebounceRef = useRef<number>(0);
 
+  // ✅ if focus refresh gets debounced, schedule a single delayed refresh
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const load = useCallback(async (opts?: { showSpinner?: boolean }) => {
     const showSpinner = opts?.showSpinner ?? true;
 
@@ -98,8 +101,20 @@ export default function AdminClientsScreen({ navigation }: any) {
       console.log('[AdminClients] screen focused');
 
       const now = Date.now();
+
+      // clear any old scheduled refresh
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+        focusTimeoutRef.current = null;
+      }
+
       if (now - focusDebounceRef.current < 600) {
-        console.log('[AdminClients] focus refresh skipped (debounced)');
+        console.log('[AdminClients] focus refresh skipped (debounced) — scheduling delayed refresh');
+        // ✅ this fixes “new business doesn’t appear unless I switch tabs”
+        focusTimeoutRef.current = setTimeout(() => {
+          if (!mountedRef.current) return;
+          load({ showSpinner: false });
+        }, 650);
       } else {
         focusDebounceRef.current = now;
         load({ showSpinner: false });
@@ -107,6 +122,10 @@ export default function AdminClientsScreen({ navigation }: any) {
 
       return () => {
         console.log('[AdminClients] screen unfocused');
+        if (focusTimeoutRef.current) {
+          clearTimeout(focusTimeoutRef.current);
+          focusTimeoutRef.current = null;
+        }
       };
     }, [load]),
   );
@@ -148,10 +167,13 @@ export default function AdminClientsScreen({ navigation }: any) {
   const renderItem = ({ item }: { item: ClientInfo }) => (
     <View style={styles.card}>
       <View style={styles.cardTop}>
-        <View style={{ flex: 1 }}>
+        <Pressable
+          onPress={() => onEdit(item)}
+          style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.9 }]}
+        >
           <Text style={styles.cardTitle}>{item.business_name}</Text>
           <Text style={styles.cardSub}>{item.website_url || '—'}</Text>
-        </View>
+        </Pressable>
 
         <Pressable onPress={() => confirmDelete(item)} hitSlop={10} style={styles.iconBtn}>
           <Ionicons name="trash-outline" size={20} color="#DC2626" />

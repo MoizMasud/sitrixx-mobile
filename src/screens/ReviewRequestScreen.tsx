@@ -25,19 +25,21 @@ const DEFAULT_MISSED_CALL_TEMPLATE =
 const REVIEW_PLACEHOLDERS = [
   { key: '{customerName}', desc: 'Customer name' },
   { key: '{businessName}', desc: 'Your business name' },
-  { key: '{reviewLink}', desc: 'Google review link' },
+  { key: '{reviewLink}', desc: 'Google review link (from Settings)' },
 ];
 
 const MISSED_CALL_PLACEHOLDERS = [
   { key: '{businessName}', desc: 'Your business name' },
-  { key: '{bookingLink}', desc: 'Booking link (optional)' },
+  { key: '{bookingLink}', desc: 'Booking link (from Settings, optional)' },
   { key: '{customerName}', desc: 'Customer name (optional)' },
 ];
 
 function applyTemplate(template: string, client: ClientInfo, previewName = 'John') {
   const businessName = client.business_name || 'our business';
-  const reviewLink = client.google_review_link || '(add your Google review link above)';
-  const bookingLink = client.booking_link || '(add your booking link in Admin)';
+  const reviewLink =
+    client.google_review_link || '(Add your Google review link in Settings)';
+  const bookingLink =
+    client.booking_link || '(Add your booking link in Settings)';
 
   return template
     .replaceAll('{businessName}', businessName)
@@ -69,12 +71,12 @@ const ReviewRequestScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [client, setClient] = useState<ClientInfo | null>(null);
-
-  const [googleReviewLink, setGoogleReviewLink] = useState('');
   const [autoReviewEnabled, setAutoReviewEnabled] = useState(false);
 
   const [reviewTemplate, setReviewTemplate] = useState(DEFAULT_REVIEW_TEMPLATE);
-  const [missedCallTemplate, setMissedCallTemplate] = useState(DEFAULT_MISSED_CALL_TEMPLATE);
+  const [missedCallTemplate, setMissedCallTemplate] = useState(
+    DEFAULT_MISSED_CALL_TEMPLATE,
+  );
 
   const reviewPreviewText = useMemo(() => {
     if (!client) return '';
@@ -105,14 +107,12 @@ const ReviewRequestScreen: React.FC = () => {
       }
 
       setClient(info);
-      setGoogleReviewLink(info.google_review_link || '');
       setAutoReviewEnabled(!!info.auto_review_enabled);
-
       setReviewTemplate(info.review_sms_template || DEFAULT_REVIEW_TEMPLATE);
       setMissedCallTemplate(info.custom_sms_template || DEFAULT_MISSED_CALL_TEMPLATE);
     } catch (e: any) {
       if (!isMountedRef.current) return;
-      setError(e?.message || 'Failed to load settings');
+      setError(e?.message || 'Failed to load messaging settings');
       setClient(null);
     } finally {
       if (!isMountedRef.current) return;
@@ -128,12 +128,11 @@ const ReviewRequestScreen: React.FC = () => {
   const onSave = async () => {
     if (!client) return;
 
-    const link = googleReviewLink.trim();
-
-    if (autoReviewEnabled && !link) {
+    // If user tries to enable Auto Review but has no google link, block them.
+    if (autoReviewEnabled && !client.google_review_link?.trim()) {
       Alert.alert(
-        'Add your Google review link',
-        'Auto review can’t be enabled without a Google review link.',
+        'Missing Google review link',
+        'To enable Auto review, add your Google review link in Settings first.',
       );
       return;
     }
@@ -142,15 +141,14 @@ const ReviewRequestScreen: React.FC = () => {
       setSaving(true);
       setError(null);
 
-      // Save all editable client fields in one call
+      // Save templates
       await apiRef.current.updateClientInfo({
         id: client.id,
-        google_review_link: link || null,
         review_sms_template: reviewTemplate,
         custom_sms_template: missedCallTemplate,
       });
 
-      // Save toggle separately (keeps existing backend behavior)
+      // Save toggle
       await apiRef.current.updateClientAutoReview({
         clientId: client.id,
         autoReviewEnabled,
@@ -158,7 +156,7 @@ const ReviewRequestScreen: React.FC = () => {
 
       Alert.alert('Saved', 'Your messaging settings have been updated.');
 
-      // refresh without forcing a “bounce to loading”
+      // refresh silently (no spinner bounce)
       await load({ showSpinner: false });
     } catch (e: any) {
       setError(e?.message || 'Failed to save settings');
@@ -172,7 +170,7 @@ const ReviewRequestScreen: React.FC = () => {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#7C3AED" />
-        <Text style={styles.centerText}>Loading settings…</Text>
+        <Text style={styles.centerText}>Loading messaging settings…</Text>
       </View>
     );
   }
@@ -230,34 +228,19 @@ const ReviewRequestScreen: React.FC = () => {
           <Switch value={autoReviewEnabled} onValueChange={setAutoReviewEnabled} />
         </View>
 
-        {autoReviewEnabled && !googleReviewLink.trim() ? (
+        {autoReviewEnabled && !client.google_review_link?.trim() ? (
           <Text style={styles.warnText}>
-            Auto review is ON, but your Google review link is empty. Add it below before saving.
+            Auto review is ON, but your Google review link is missing. Add it in Settings before saving.
           </Text>
         ) : null}
-      </View>
-
-      {/* Google review link */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Google review link</Text>
-        <Text style={styles.cardDesc}>
-          Paste the link customers should open to leave a review.
-        </Text>
-
-        <Text style={styles.label}>Google review link</Text>
-        <TextInput
-          value={googleReviewLink}
-          onChangeText={setGoogleReviewLink}
-          autoCapitalize="none"
-          placeholder="https://g.page/r/XXXX/review"
-          style={styles.input}
-        />
       </View>
 
       {/* Review request template */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Review request SMS</Text>
-        <Text style={styles.cardDesc}>Sent when you manually send a review, or when Auto review is ON.</Text>
+        <Text style={styles.cardDesc}>
+          Sent when you manually send a review, or when Auto review is ON.
+        </Text>
 
         <View style={styles.placeholderRow}>
           {REVIEW_PLACEHOLDERS.map((p) => (
@@ -281,6 +264,12 @@ const ReviewRequestScreen: React.FC = () => {
         <View style={styles.previewBox}>
           <Text style={styles.previewText}>{reviewPreviewText}</Text>
         </View>
+
+        {!client.google_review_link?.trim() ? (
+          <Text style={styles.mutedHint}>
+            Tip: Add your Google review link in Settings to remove the “missing link” placeholder.
+          </Text>
+        ) : null}
       </View>
 
       {/* Missed call template */}
@@ -313,9 +302,9 @@ const ReviewRequestScreen: React.FC = () => {
           <Text style={styles.previewText}>{missedCallPreviewText}</Text>
         </View>
 
-        {!client.booking_link ? (
+        {!client.booking_link?.trim() ? (
           <Text style={styles.mutedHint}>
-            Tip: Add a booking link in Admin if you want to use {'{bookingLink}'}.
+            Tip: Add a booking link in Settings if you want to use {'{bookingLink}'}.
           </Text>
         ) : null}
       </View>
@@ -345,7 +334,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   content: { padding: 16, paddingBottom: 32 },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 18, backgroundColor: '#FFFFFF' },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    backgroundColor: '#FFFFFF',
+  },
   centerText: { marginTop: 10, color: '#6B7280' },
 
   title: { fontSize: 22, fontWeight: '700', marginBottom: 6 },
@@ -401,10 +396,22 @@ const styles = StyleSheet.create({
 
   errorText: { marginBottom: 10, color: '#B91C1C', fontSize: 12 },
 
-  primaryButton: { marginTop: 14, backgroundColor: '#7C3AED', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 999 },
+  primaryButton: {
+    marginTop: 14,
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
   primaryButtonText: { color: '#FFFFFF', fontWeight: '700' },
 
-  saveButton: { marginTop: 4, backgroundColor: '#7C3AED', paddingVertical: 14, borderRadius: 999, alignItems: 'center' },
+  saveButton: {
+    marginTop: 4,
+    backgroundColor: '#7C3AED',
+    paddingVertical: 14,
+    borderRadius: 999,
+    alignItems: 'center',
+  },
   saveButtonDisabled: { backgroundColor: '#9CA3AF' },
   saveButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
 });

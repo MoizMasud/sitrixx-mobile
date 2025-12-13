@@ -9,10 +9,14 @@ import {
   Platform,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
-export default function LoginScreen({ navigation }: any) {
+const REDIRECT_TO = 'sitrixx://reset-password';
+
+export default function LoginScreen() {
   const { signIn } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -27,7 +31,7 @@ export default function LoginScreen({ navigation }: any) {
     try {
       await signIn(email.trim(), password);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Login failed');
+      setErrorMsg(err?.message || 'Login failed');
     } finally {
       setSubmitting(false);
     }
@@ -44,11 +48,14 @@ export default function LoginScreen({ navigation }: any) {
     setSendingReset(true);
 
     try {
-      navigation.navigate('ForgotPasswordSent', {
-        email: emailTrimmed,
+      const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {
+        redirectTo: REDIRECT_TO,
       });
+      if (error) throw error;
+
+      Alert.alert('Check your email', 'We sent you a password reset link.');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to send reset email');
+      setErrorMsg(err?.message || 'Failed to send reset email');
     } finally {
       setSendingReset(false);
     }
@@ -60,16 +67,13 @@ export default function LoginScreen({ navigation }: any) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
-        {/* Logo */}
         <View style={{ alignItems: 'center', marginBottom: 32 }}>
           <Image
             source={require('../../assets/logo.png')}
             style={{ width: 96, height: 96, borderRadius: 24, marginBottom: 12 }}
             resizeMode="contain"
           />
-          <Text style={{ fontSize: 24, fontWeight: '700' }}>
-            Sitrixx Leads
-          </Text>
+          <Text style={{ fontSize: 24, fontWeight: '700' }}>Sitrixx Leads</Text>
           <Text
             style={{
               fontSize: 14,
@@ -78,12 +82,10 @@ export default function LoginScreen({ navigation }: any) {
               textAlign: 'center',
             }}
           >
-            Log in to see all your calls, form submissions and review requests in
-            one place.
+            Log in to see all your calls, form submissions and review requests in one place.
           </Text>
         </View>
 
-        {/* Email */}
         <Text style={{ marginBottom: 4, fontWeight: '500' }}>Email</Text>
         <TextInput
           value={email}
@@ -101,7 +103,6 @@ export default function LoginScreen({ navigation }: any) {
           }}
         />
 
-        {/* Password */}
         <Text style={{ marginBottom: 4, fontWeight: '500' }}>Password</Text>
         <TextInput
           value={password}
@@ -118,7 +119,6 @@ export default function LoginScreen({ navigation }: any) {
           }}
         />
 
-        {/* Forgot password */}
         <TouchableOpacity
           onPress={handleForgotPassword}
           disabled={sendingReset}
@@ -129,13 +129,8 @@ export default function LoginScreen({ navigation }: any) {
           </Text>
         </TouchableOpacity>
 
-        {errorMsg ? (
-          <Text style={{ color: '#EF4444', marginBottom: 8 }}>
-            {errorMsg}
-          </Text>
-        ) : null}
+        {errorMsg ? <Text style={{ color: '#EF4444', marginBottom: 8 }}>{errorMsg}</Text> : null}
 
-        {/* Login button */}
         <TouchableOpacity
           onPress={handleLogin}
           disabled={submitting}
@@ -150,13 +145,10 @@ export default function LoginScreen({ navigation }: any) {
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
-              Log in
-            </Text>
+            <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Log in</Text>
           )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
-

@@ -130,6 +130,7 @@ export const useClientApi = () => {
       },
       body: JSON.stringify({
         id,
+        booking_link: updates.booking_link,
         google_review_link: updates.google_review_link,
         twilio_number: updates.twilio_number,
         forwarding_phone: updates.forwarding_phone,
@@ -139,7 +140,7 @@ export const useClientApi = () => {
           typeof updates.auto_review_enabled === 'boolean'
             ? updates.auto_review_enabled
             : undefined,
-      }),
+            }),
     });
 
     if (!res.ok) throw new Error(await parseError(res));

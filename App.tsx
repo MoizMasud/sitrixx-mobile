@@ -159,49 +159,6 @@ const RootNavigator = () => {
   );
 }
 export default function App() {
-  useEffect(() => {
-    (async () => {
-      const initialUrl = await Linking.getInitialURL();
-      if (!initialUrl) return;
-
-      const parsed = Linking.parse(initialUrl);
-      const code = parsed.queryParams?.code as string | undefined;
-
-      if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
-      }
-    })();
-  }, []);
-
-    useEffect(() => {
-    const sub = Linking.addEventListener('url', async ({ url }) => {
-      const parsed = Linking.parse(url);
-
-      // PKCE flow (newer Supabase links)
-      const code = parsed.queryParams?.code as string | undefined;
-      if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
-        return;
-      }
-
-      // Legacy hash-based flow
-      const hash = url.split('#')[1];
-      if (!hash) return;
-
-      const params = new URLSearchParams(hash);
-      const access_token = params.get('access_token');
-      const refresh_token = params.get('refresh_token');
-
-      if (access_token && refresh_token) {
-        await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
-      }
-    });
-
-    return () => sub.remove();
-  }, []);
   return (
     <AuthProvider>
       <NavigationContainer theme={SitrixxTheme} linking={linking}>

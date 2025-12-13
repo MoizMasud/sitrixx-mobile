@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { useClientApi, ClientInfo } from '../api/clientApi';
 import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 export const SettingsScreen: React.FC = () => {
   const api = useClientApi();
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
+  const navigation = useNavigation<any>();
 
   const apiRef = useRef(api);
   useEffect(() => {
@@ -108,6 +110,13 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
+  const goAdmin = () => {
+    // With your new App.tsx:
+    // Root Stack: Main -> AuthedNavigator
+    // AuthedNavigator: Tabs + Admin
+    navigation.navigate('Main', { screen: 'Admin' });
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -130,6 +139,13 @@ export const SettingsScreen: React.FC = () => {
           <Text style={styles.primaryButtonText}>Retry</Text>
         </Pressable>
 
+        {/* ✅ Admin entry still useful even if no client */}
+        {profile?.role === 'admin' ? (
+          <Pressable onPress={goAdmin} style={styles.adminButton}>
+            <Text style={styles.adminButtonText}>Open Admin Panel</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable onPress={signOut} style={styles.linkButton}>
           <Text style={styles.linkText}>Logout</Text>
         </Pressable>
@@ -148,6 +164,12 @@ export const SettingsScreen: React.FC = () => {
           <Text style={styles.primaryButtonText}>Retry</Text>
         </Pressable>
 
+        {profile?.role === 'admin' ? (
+          <Pressable onPress={goAdmin} style={styles.adminButton}>
+            <Text style={styles.adminButtonText}>Open Admin Panel</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable onPress={signOut} style={styles.linkButton}>
           <Text style={styles.linkText}>Logout</Text>
         </Pressable>
@@ -163,6 +185,26 @@ export const SettingsScreen: React.FC = () => {
       </Text>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      {/* ✅ Admin Panel Card */}
+      {profile?.role === 'admin' ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Admin</Text>
+          <Text style={styles.cardDesc}>
+            Create businesses, add users, and assign users to a business.
+          </Text>
+
+          <Pressable
+            onPress={goAdmin}
+            style={({ pressed }) => [
+              styles.adminButtonInline,
+              pressed && { opacity: 0.9 },
+            ]}
+          >
+            <Text style={styles.adminButtonInlineText}>Open Admin Panel</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Business</Text>
@@ -312,4 +354,26 @@ const styles = StyleSheet.create({
 
   linkButton: { marginTop: 14, alignItems: 'center' },
   linkText: { color: '#6B7280', textDecorationLine: 'underline' },
+
+  // ✅ Admin button styles
+  adminButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  adminButtonText: { color: '#7C3AED', fontWeight: '800' },
+
+  adminButtonInline: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+    paddingVertical: 12,
+    borderRadius: 999,
+    alignItems: 'center',
+  },
+  adminButtonInlineText: { color: '#7C3AED', fontWeight: '800' },
 });
+

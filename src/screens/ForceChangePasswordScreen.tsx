@@ -13,11 +13,7 @@ export default function ForceChangePasswordScreen() {
 
   const uid = useMemo(() => session?.user?.id ?? null, [session]);
 
-  console.log('[FORCE CHANGE] Render', {
-    uid,
-    hasSession: !!session,
-    needsPasswordChange: profile?.needs_password_change,
-  });
+
 
   const updatePassword = async () => {
     if (!newPass || newPass.length < 8) {
@@ -29,17 +25,17 @@ export default function ForceChangePasswordScreen() {
 
     setLoading(true);
     try {
-      console.log('[FORCE CHANGE] Updating Supabase password…');
+
 
       // 1) Update auth password
       const { error: passErr } = await supabase.auth.updateUser({ password: newPass });
-      console.log('[FORCE CHANGE] updateUser result', { passErr });
+
       if (passErr) throw passErr;
 
       // 2) Flip needs_password_change off in profiles
       if (!uid) throw new Error('No user id in session');
 
-      console.log('[FORCE CHANGE] Updating profiles.needs_password_change=false…');
+
       const { data: updData, error: updErr } = await supabase
         .from('profiles')
         .update({
@@ -49,7 +45,7 @@ export default function ForceChangePasswordScreen() {
         .eq('id', uid)
         .select('id, needs_password_change');
 
-      console.log('[FORCE CHANGE] profiles update result', { updData, updErr });
+
       if (updErr) throw updErr;
 
       // 3) Immediately re-select to confirm DB value changed
@@ -59,7 +55,7 @@ export default function ForceChangePasswordScreen() {
         .eq('id', uid)
         .single();
 
-      console.log('[FORCE CHANGE] profiles re-check', { checkData, checkErr });
+
       if (checkErr) throw checkErr;
 
       // 4) Pull fresh profile into context so RootNavigator routes correctly

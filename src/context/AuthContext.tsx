@@ -64,7 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const seq = ++fetchSeqRef.current;
 
     const run = (async () => {
-      console.log('[PROFILE] Fetch start', { seq, userId });
       if (!mountedRef.current) return;
 
       setProfileLoading(true);
@@ -82,10 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           })(),
           8000
         );
-        console.log('[PROFILE] Fetch result', { seq, data, error });
 
         if (seq !== fetchSeqRef.current) {
-          console.log('[PROFILE] Stale result ignored', { seq, latest: fetchSeqRef.current });
           return;
         }
 
@@ -101,7 +98,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } finally {
         if (!mountedRef.current) return;
         setProfileLoading(false);
-        console.log('[PROFILE] Fetch end', { seq });
         inFlightRef.current = null;
       }
     })();
@@ -124,18 +120,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ✅ Boot: only read session. DO NOT fetch profile here (prevents double-fetch)
   useEffect(() => {
     (async () => {
-      console.log('[BOOT] Checking existing session…');
       try {
         const { data } = await supabase.auth.getSession();
         const s = data.session ?? null;
-
-        console.log('[BOOT] Session:', { hasSession: !!s, userId: s?.user?.id });
         if (!mountedRef.current) return;
 
         setSession(s);
       } finally {
         if (!mountedRef.current) return;
-        console.log('[BOOT] Done');
         setLoading(false);
       }
     })();
@@ -144,17 +136,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ✅ Auth changes: fetch profile on SIGNED_IN / INITIAL_SESSION / TOKEN_REFRESHED only
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log('[AUTH EVENT]', event, {
-        hasSession: !!newSession,
-        userId: newSession?.user?.id,
-      });
+
 
       if (!mountedRef.current) return;
       setSession(newSession);
 
       // IMPORTANT: do NOT refetch profile on USER_UPDATED (it can fire during password update)
       if (event === 'USER_UPDATED') {
-        console.log('[AUTH EVENT] Ignoring USER_UPDATED for profile fetch');
         return;
       }
 

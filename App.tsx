@@ -15,8 +15,33 @@ import ReviewRequestScreen from './src/screens/ReviewRequestScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { Ionicons } from '@expo/vector-icons';
 
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+// Admin screens
+import AdminHomeScreen from './src/screens/admin/AdminHomeScreen';
+import AdminClientsScreen from './src/screens/admin/AdminClientsScreen';
+import AdminClientEditScreen from './src/screens/admin/AdminClientEditScreen';
+import AdminClientUsersScreen from './src/screens/admin/AdminClientUsersScreen';
+import AdminUserCreateScreen from './src/screens/admin/AdminUserCreateScreen';
+import AdminUserEditScreen from './src/screens/admin/AdminUserEditScreen';
+
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+const AdminStack = createNativeStackNavigator();
+
+function AdminNavigator() {
+  return (
+    <AdminStack.Navigator>
+      <AdminStack.Screen name="AdminHome" component={AdminHomeScreen} options={{ title: 'Admin' }} />
+      <AdminStack.Screen name="AdminClients" component={AdminClientsScreen} options={{ title: 'Businesses' }} />
+      <AdminStack.Screen name="AdminClientEdit" component={AdminClientEditScreen} options={{ title: 'Business' }} />
+      <AdminStack.Screen name="AdminClientUsers" component={AdminClientUsersScreen} options={{ title: 'Users' }} />
+      <AdminStack.Screen name="AdminUserCreate" component={AdminUserCreateScreen} options={{ title: 'Add user' }} />
+      <AdminStack.Screen name="AdminUserEdit" component={AdminUserEditScreen} options={{ title: 'Edit user' }} />
+    </AdminStack.Navigator>
+  );
+}
 
 const SitrixxTheme = {
   ...DefaultTheme,
@@ -64,6 +89,9 @@ const ProfileGate = () => {
 };
 
 function AuthedTabs() {
+  const { profile } = useAuth();
+  const isAdmin = (profile?.role || '').toLowerCase() === 'admin';
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -79,6 +107,7 @@ function AuthedTabs() {
           if (route.name === 'Requests') return <Ionicons name="chatbubbles-outline" size={size} color={color} />;
           if (route.name === 'Contacts') return <Ionicons name="book-outline" size={size} color={color} />;
           if (route.name === 'Settings') return <Ionicons name="settings-outline" size={size} color={color} />;
+          if (route.name === 'Admin') return <Ionicons name="shield-outline" size={size} color={color} />;
           return null;
         },
       })}
@@ -88,18 +117,20 @@ function AuthedTabs() {
       <Tab.Screen name="Requests" component={ReviewRequestScreen} options={{ title: 'Messaging' }} />
       <Tab.Screen name="Contacts" component={ContactsScreen} options={{ title: 'Contacts' }} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
+
+      {isAdmin ? (
+        <Tab.Screen
+          name="Admin"
+          component={AdminNavigator}
+          options={{ headerShown: false }}
+        />
+      ) : null}
     </Tab.Navigator>
   );
 }
 
 const RootNavigator = () => {
   const { session, loading, profileLoading, profile } = useAuth();
-console.log('[NAV]', {
-  loading,
-  profileLoading,
-  hasSession: !!session,
-  needsPasswordChange: profile?.needs_password_change,
-});
 
   if (loading) return <LoadingScreen label="Starting…" />;
   if (session && profileLoading) return <LoadingScreen label="Loading your account…" />;

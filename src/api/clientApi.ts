@@ -29,7 +29,7 @@ export type CustomerContact = {
 const BACKEND_URL = 'https://sitrixx-website-backend.vercel.app';
 
 type ApiErrorBody = { ok?: boolean; error?: string; message?: string };
-
+export type AdminMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 export const useClientApi = () => {
   const { session } = useAuth();
 
@@ -45,9 +45,6 @@ export const useClientApi = () => {
 
   const cachedClientIdRef = useRef<string | null>(null);
 
-
-
-
   const listClients = async (): Promise<ClientInfo[]> => {
     const token = ensureToken();
 
@@ -56,13 +53,11 @@ export const useClientApi = () => {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-
     if (!res.ok) throw new Error(await parseError(res));
 
     const body = await res.json().catch(() => ({} as any));
     return (body.clients || []) as ClientInfo[];
   };
-
 
   const resolveClientId = async (): Promise<string> => {
     if (cachedClientIdRef.current) return cachedClientIdRef.current;
@@ -71,6 +66,7 @@ export const useClientApi = () => {
     cachedClientIdRef.current = clients[0].id;
     return cachedClientIdRef.current;
   };
+
   // -------------------------
   // Leads
   // -------------------------
@@ -140,7 +136,7 @@ export const useClientApi = () => {
           typeof updates.auto_review_enabled === 'boolean'
             ? updates.auto_review_enabled
             : undefined,
-            }),
+      }),
     });
 
     if (!res.ok) throw new Error(await parseError(res));
@@ -300,6 +296,61 @@ export const useClientApi = () => {
     return await res.json().catch(() => ({}));
   };
 
+  // ============================================================
+  // ✅ ADMIN HELPERS (FIXED + EASY TO USE)
+  // ============================================================
+
+
+  type AdminUsersResponse = { ok: true; users: any[] } | { ok: false; error: string };
+  type AdminClientsResponse = { ok: true; clients: any[] } | { ok: false; error: string };
+
+const adminFetch = async (
+  path: '/api/admin/clients' | '/api/admin/users' | '/api/admin/client-users',
+  method: AdminMethod,
+  query?: string,
+  body?: any,
+) => {
+  const token = ensureToken();
+
+  const url = `${BACKEND_URL}${path}${query ? `?${query}` : ''}`;
+
+  console.log('[ADMIN API]', method, url);
+
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }),
+    },
+    ...(method === 'GET' ? {} : { body: JSON.stringify(body || {}) }),
+  });
+
+  const json = await res.json().catch(() => ({}));
+
+  console.log('[ADMIN API] response', {
+    status: res.status,
+    url,
+    json,
+  });
+
+  if (!res.ok) {
+    throw new Error(json?.error || json?.message || `Request failed (${res.status})`);
+  }
+
+  return json;
+};
+
+const adminClientsApi = (method: AdminMethod, query?: string, body?: any) =>
+  adminFetch('/api/admin/clients', method, query, body);
+
+const adminClientUsersApi = (clientId: string) =>
+  adminFetch('/api/admin/client-users', 'GET', `clientId=${encodeURIComponent(clientId)}`);
+
+
+const adminUsersApi = (method: AdminMethod, query?: string, body?: any) =>
+  adminFetch('/api/admin/users', method, query, body);
+
+
   return {
     // client
     listClients,
@@ -319,5 +370,10 @@ export const useClientApi = () => {
 
     // actions
     sendReviewRequest,
+
+    // admin
+    adminClientUsersApi,
+    adminClientsApi,
+    adminUsersApi,
   };
 };

@@ -15,9 +15,9 @@ export default function ResetPasswordScreen() {
         const { data, error } = await supabase.auth.exchangeCodeForSession(url);
         if (error) {
           // Some setups won’t use code exchange; still allow user to try if session already exists
-          console.log('exchangeCodeForSession error', error.message);
+
         } else {
-          console.log('session exchanged', data?.session?.user?.id);
+
         }
       } finally {
         setReady(true);
